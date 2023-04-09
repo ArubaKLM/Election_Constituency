@@ -1,0 +1,47 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(sf)
+library(jsonlite)
+library(httr)
+library(rgdal)
+library(leaflet)
+library(krvotes)
+```
+
+```{r}
+kor_json <- fromJSON("https://raw.githubusercontent.com/OhmyNews/2020_21_elec_map/master/2020_21_elec_253_simple.json")
+```
+
+
+
+```{r}
+kor_cons <-  sf::st_read("https://raw.githubusercontent.com/OhmyNews/2020_21_elec_map/master/2020_21_elec_253_simple.json")
+head(kor_cons)
+```
+```{r}
+color_palette <-  thematic::okabe_ito(15)
+names(color_palette) <- unique(kor_cons$SGG_3)
+```
+
+
+```{r}
+leaflet(kor_cons) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.3, 
+              fillOpacity = .4)
+```
+```{r}
+
+```
+
+
+```{r}
+kor_cons$area <- st_area(kor_cons)
+```
+
+

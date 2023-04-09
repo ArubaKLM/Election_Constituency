@@ -1,0 +1,130 @@
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(httr)
+library(rvest)
+```
+
+```{r}
+# 함수 생성 전 연습
+urlsenkyo <- "https://www.asahi.com/senkyo/saninsen/2022/koho/C01.html"
+webc <- rvest::read_html(urlsenkyo)
+webc %>% 
+  rvest::html_nodes("div.KohoInfoBox") %>%
+  rvest::html_text() -> webkoho
+
+webc %>% 
+  rvest::html_nodes("div.KohoInfoName") %>%
+  rvest::html_text() %>% as.data.frame()-> jpnamae
+
+webc %>% 
+  rvest::html_nodes("div.numwrap") %>%
+  rvest::html_text() %>% as.data.frame()-> jpvote
+
+
+webkoho
+```
+
+
+```{r}
+webc %>% 
+  rvest::html_nodes("span.to") %>%
+  rvest::html_text() %>% as.data.frame()-> jpelect
+
+webc %>% 
+  rvest::html_nodes("div.ThmbCol") %>%
+  rvest::html_text() %>% as.data.frame()-> jppic
+jppic
+```
+
+
+```{r}
+webc %>% 
+  rvest::html_nodes("li.age") %>%
+  rvest::html_text()  %>% as.data.frame()-> jpage
+
+webc %>% 
+  rvest::html_nodes("li.shinkyu") %>%
+  rvest::html_text() %>% as.data.frame()-> jpexp
+
+webc %>% 
+  rvest::html_nodes("li.kaisu") %>%
+  rvest::html_text() %>% as.data.frame()-> jpkaisu
+
+webc %>% 
+  rvest::html_nodes("li.ryakureki") %>%
+  rvest::html_text() %>% as.data.frame()-> jpresume
+```
+```{r}
+jpcan22 <- cbind(jpnamae, jpvote, jpage, jpexp, jpkaisu, jpresume)
+colnames(jpcan22) <- c("name", "vote", "age", "exp", "kaisu", "jpresume")
+```
+
+
+```{r}
+webkoho_table
+```
+
+
+
+```{r}
+coordinatetd <- webkoho[grepl("Coordinates", webtd)]
+coord <- gsub("^.*\\Coor","Coor",coordinatetd)
+coord
+coor <- gsub(".*\\°W﻿ / ","",coord)
+coor
+```
+
+```{r}
+# 함수 생성
+scrape_coordinate_wiki <- function(url) {
+  webc <- rvest::read_html(url)
+  webtd <- webc %>% 
+  rvest::html_nodes("td") %>%
+  rvest::html_text()
+  coordinatetd <- webtd[grepl("Coordinates", webtd)]
+  coord <- gsub("^.*\\Coor","Coor",coordinatetd)
+  coor <- gsub(".*\\°W﻿ / ","",coord)
+  coordinate <- data.frame(
+    url = url,
+    coor = coor
+  )
+  return(coordinate)
+}
+  
+```
+
+
+```{r}
+length(mlb_1$url)
+scrape_coordinate_wiki(mlb_1$url[2])
+scrape_coordinate_wiki(mlb_1$url[4])
+urllist <-mlb_1$url
+nrow(urllist)
+```
+
+```{r}
+all_coord <- data.frame() 
+
+for (i in 1:length(urllist)) {
+  coordinate <- scrape_coordinate_wiki(urllist[i])
+  all_coord <- rbind(all_coord, coordinate)
+}
+```
+
+
+
+```{r}
+allcoord <- read.csv("./allcoord.csv")
+mlb_2 <- left_join(mlb_1, allcoord, by="url")
+mlb_2
+```
+
+
+```{r}
+mlb_3 <- mlb_2 %>% separate(coor, c('coordY', 'coordX'), sep = ";")
+DT::datatable(mlb_3)
+```

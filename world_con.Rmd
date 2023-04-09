@@ -1,0 +1,99 @@
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(ggiraph)
+library(PupillometryR)
+library(skimr)
+library(hrbrthemes)
+library(viridis)
+library(ggridges)
+theme_set(theme_bw(16))
+setwd(".")
+```
+# 데이터 불러오기
+## 세계 데이터
+```{r}
+# sbs 사실은 팀에서 분석한 주요국가의 인구와 국회의원 수 (링크: https://news.sbs.co.kr/news/endPage.do?news_id=N1007050936 )
+
+library(tesseract)
+eng <- tesseract("eng")
+tesseract_download("kor")
+(korean <- tesseract("kor"))
+
+world <- ocr_data("./data-raw/world_congress_pop.png", engine = korean)
+```
+
+
+```{r}
+uk2019 <- read.csv("./data/uk_GE2019.csv") %>%
+  mutate("election" = "uk_2019")
+```
+
+## 각국 데이터
+```{r}
+uk2019 <- read.csv("./data/uk_GE2019.csv") %>%
+  mutate('election' = "uk_2019")
+colnames(uk2019)[2:3] <- c('cons', 'region')
+kor2020 <- read.csv("./data/korea_GE2020.csv") %>%
+  mutate('election' = "kor_2020")
+kor2020 <- kor2020 %>% rename('region' = 'sido')
+
+common <- intersect(colnames(kor2020), colnames(uk2019))
+plotData <- rbind(uk2019[common],kor2020[common])
+```
+
+```{r}
+plotData |> group_by(election) |> skim()
+```
+
+
+```{r}
+elect_vio <- plotData |> 
+  ggplot(aes(x=election,
+             y=electorate,
+             fill=election)) +
+    geom_violin() +
+    theme(legend.position="none") +
+  coord_flip()
+elect_vio
+```
+
+
+```{r}
+library(RColorBrewer)
+nb.cols <- 30
+mycolors <- colorRampPalette(brewer.pal(8, "Set2"))(nb.cols)
+```
+
+
+```{r}
+dark_colors <- c("#D55E00", "#0072B2")
+light_colors <- c("#D55E0050", "#0072B250")
+color_palette <-  thematic::okabe_ito(30)
+
+plotData %>%
+  ggplot(aes(x = electorate, y = election, 
+             fill = region, color = region, point_color = region)) +
+  geom_density_ridges(
+    alpha=0.2, scale=0.9,
+    jittered_points = TRUE, scale = 1,
+    rel_min_height = .01, point_shape = "|",
+    point_size = 3, size = 0.25,
+    position = position_points_jitter(height = 0)
+  ) +
+   scale_y_discrete(expand = c(0, 0)) +
+  scale_x_continuous(expand = c(0, 0), name = "선거권자")
+```
+
+
+
+```{r}
+```
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

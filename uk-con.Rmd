@@ -1,0 +1,187 @@
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(patchwork)
+library(DataExplorer)
+library(DT)
+library(ggplot2)
+library(ggiraph)
+options(scipen=100)
+setwd(".")
+```
+
+# 데이터 준비
+## 유권자 및 정당/후보별 득표 데이터터
+```{r}
+ge2019 <- read.csv("./data/GE2019_constituency.csv")
+head(ge2019)
+plot_intro(ge2019)
+plot_missing(ge2019)
+plot_bar(ge2019$result)
+plot_histogram(ge2019)
+```
+
+## 인구 데이터
+```{r}
+# https://www.nrscotland.gov.uk/statistics-and-data/statistics/statistics-by-theme/population/population-estimates/2011-based-special-area-population-estimates/ukpc-population-estimates: 스코틀랜드 데이터
+
+
+# Parliamentary constituency population estimates (Experimental Statistics): 2020년 예측치에 대한 결과
+
+
+```
+
+
+## 면적 데이터
+```{r}
+# https://geoportal.statistics.gov.uk/datasets/standard-area-measurements-2018-for-electoral-areas-in-the-united-kingdom-1/about: 2018년기준(마지막 선거구 재획정 연도는 2010년) 선거구 면적 데이터
+```
+
+
+# 시각화
+```{r}
+party_cols <- ge2019 %>% select(c(19:28)) %>% names()
+ge2019 <- ge2019 |> mutate("winner" = pmax(!!!rlang::syms(party_cols)))
+
+uk1 <- ge2019 |> select(c('constituency_name', 'region_name', 'first_party', 'electorate', 'winner'))
+uk1 |> ggplot(aes(x=winner, y=electorate, color=first_party)) + geom_point()  + geom_abline(slope=2, color ="red") + geom_abline(slope=4, color="blue") +coord_flip()
+```
+
+```{r}
+reg  <- lm(electorate ~ winner, data = uk1)
+uk1 |> ggplot() + geom_point(aes(x=winner, y=electorate, color=region_name)) + geom_abline(slope=2, color ="red") + geom_abline(slope=4, color="blue") +coord_flip()
+```
+
+```{r}
+color_palette <-  thematic::okabe_ito(15)
+names(color_palette) <- unique(uk1$first_party)
+```
+```{r}
+ukvote1 <- uk1 |> 
+  ggplot(aes(x=winner, y=electorate,
+             col=first_party)) + 
+  geom_point_interactive(size=2) +
+  theme_minimal(base_size = 15) +
+  labs(
+    x ='당선자의 득표수',
+    y ='지역구 유권자수',
+    title ='영국 2019 총선 지역구 당선자의 득표수'
+  ) +
+  theme(
+    text = element_text(color = 'grey20'),
+    legend.position = 'none',
+    panel.grid.minor = element_blank(),
+    plot.title.position = 'plot'
+  ) +
+  scale_color_manual_interactive(values = color_palette)  + coord_flip() + 
+  geom_abline(slope=2, color ="red") + geom_abline(slope=4, color="blue")
+
+girafe(
+  ggobj = ukvote1,
+  height_svg = 6,
+  width_svg = 9
+  ) |>
+  girafe_options(
+    opts_hover(css = "opacity:1;"),
+    opts_hover_inv(css = "opacity:0.1;"),
+    opts_sizing(rescale = FALSE))
+```
+
+```{r}
+ukvote2 <- uk1 |> 
+  ggplot(aes(x=winner, y=first_party,
+             fill=first_party)) + 
+  geom_boxplot_interactive(
+    position = position_nudge(y = 0.25), 
+    width = 0.5
+  ) +
+  geom_point_interactive(
+    aes(col = first_party),
+    position = position_nudge(y = -0.25),
+    size = 4,
+    shape = '|',
+    alpha = 0.75
+  ) +
+  scale_fill_manual_interactive(values = color_palette) +
+  scale_color_manual_interactive(values = color_palette) +
+  theme_minimal(base_size = 15) +
+  labs(
+    x ='당선자의 득표수',
+    y = element_blank(),
+    title ='영국 2019 총선 지역구 당선자의 득표수'
+  ) +
+  theme(
+    text = element_text(color = 'grey20'),
+    legend.position = 'none',
+    panel.grid.minor = element_blank(),
+    plot.title.position = 'plot'
+  )
+girafe(
+  ggobj = ukvote2,
+  options = list(
+    opts_hover(css = ''),
+    opts_hover_inv(css = "opacity:0.1;"),
+    opts_sizing(rescale = FALSE)
+  ),
+  height_svg = 6,
+  width_svg = 9
+)
+```
+
+### 합쳐 보기
+```{r}
+girafe(
+  ggobj = ukvote1 + plot_spacer() + ukvote2 + plot_layout(widths = c(0.45, 0.1, 0.45)),
+  options = list(
+    opts_hover(css = ''),
+    opts_hover_inv(css = "opacity:0.1;"),
+    opts_sizing(rescale = FALSE)
+  ),
+  height_svg = 8,
+  width_svg = 12
+)
+```
+
+
+```{r}
+uk1$tooltip = paste0(uk1$constituency_name, " | ", uk1$first_party)
+uk1$clickjs = paste0("alert(\"",uk1$constituency_name, " | ", uk1$first_party, "\")" )
+
+ukvote3 <- uk1 |> 
+  ggplot() + 
+  geom_point_interactive(
+    aes(x=winner, y=electorate,
+        col=first_party,
+        tooltip = tooltip, onclick = clickjs),  size=1.8) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x ='당선자의 득표수',
+    y ='지역구 유권자수',
+    title ='영국 2019 총선 지역구 당선자의 득표수'
+  ) +
+  theme(
+    text = element_text(color = 'grey20'),
+    legend.position = 'none',
+    panel.grid.minor = element_blank(),
+    plot.title.position = 'plot'
+  ) +
+  scale_color_manual_interactive(values = color_palette)  + coord_flip() + 
+  geom_abline(slope=2, color ="red") + geom_abline(slope=4, color="blue")
+girafe(
+  ggobj = ukvote3,
+  height_svg = 9,
+  width_svg = 16
+  ) |>
+  girafe_options(
+    opts_hover(css = "fill:black;stroke:orange;r:5pt;")
+  )
+
+```
+```{r}
+write.csv(uk1, "./data/uk_GE2019.csv", row.names = TRUE)
+```
+
+
